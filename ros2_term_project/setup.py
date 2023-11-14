@@ -25,7 +25,6 @@ setup(
     entry_points={
         'console_scripts': [
             'pub = ros2_term_project.publisher:main',
-            'pub2 = ros2_term_project.publisher2:main',
         ],
     },
 )

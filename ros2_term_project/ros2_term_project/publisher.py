@@ -13,7 +13,7 @@ class Publisher(Node):
     def __init__(self, vel: Velocity):
         super().__init__('publisher')
         self.vel = vel
-        self.publisher = self.create_publisher(Twist, 'PR001_start', 1)
+        self.publisher = self.create_publisher(Twist, 'start_car', 1)
         timer_period = 1 / Publisher.PUB_RATE  # unit time: second
         self.timer = self.create_timer(timer_period, self.pub_callback)
         self.name = vel.name
