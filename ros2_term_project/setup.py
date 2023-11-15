@@ -24,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'pub = ros2_term_project.publisher:main',
+            'pub = ros2_term_project.start_car_publisher:main'
         ],
     },
 )

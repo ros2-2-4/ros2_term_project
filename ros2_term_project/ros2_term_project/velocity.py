@@ -2,15 +2,15 @@
 from geometry_msgs.msg import Twist
 import threading
 import time
+import datetime as dt
 
 thread = None
 
 
 class Velocity:
 
-    def __init__(self, name):
+    def __init__(self):
         global thread
-        self.name = name
         self.speed_ = None
         self.thread = threading.Thread(target=self.run)
         self.thread.start()
@@ -31,6 +31,16 @@ class Velocity:
             super().__init__()
             self._linear_velocity = 6.0
             self._angular_velocity = 0.0
+#            self.spot()
+
+#        def spot(self):
+#             if(신호왔는지 확인, 확인완료)
+#                   self._linear_velocity = 0.0
+#            if(self._linear_velocity == 0.0)
+#                start_time = dt.datetime.now() 장애물 발견시각
+#                end_time = dt.datetime.now() 3초 지났는지 확인하고 다시 출발
+#                if(3초 지났으면)       
+#                   self._linear_velocity = 6.0
 
         @property
         def linear_velocity(self) -> float:
@@ -42,11 +52,11 @@ class Velocity:
 
 
 def main():
-    vel = Velocity('PR001')
+    vel = Velocity()
     print('thread info:', vel.thread)
     for i in range(100):
-        print('name = %s, linear = %f, angular = %f' %
-              (vel.name, vel.linear_velocity, vel.angular_velocity))
+        print('linear = %f, angular = %f' %
+              (vel.linear_velocity, vel.angular_velocity))
         time.sleep(0.5)
 
     vel.thread.join()
