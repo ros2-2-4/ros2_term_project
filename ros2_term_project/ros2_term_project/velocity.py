@@ -34,13 +34,18 @@ class Velocity:
 #            self.spot()
 
 #        def spot(self):
-#             if(신호왔는지 확인, 확인완료)
+#            if(신호왔는지 확인, 확인완료)
 #                   self._linear_velocity = 0.0
 #            if(self._linear_velocity == 0.0)
+#                
 #                start_time = dt.datetime.now() 장애물 발견시각
-#                end_time = dt.datetime.now() 3초 지났는지 확인하고 다시 출발
-#                if(3초 지났으면)       
+#                time.sleep(3.0)
+#                end_time = dt.datetime.now() 3초 지났는지 확인용
+#                if(3초 지났으면 end_time - start_time >= 3.0)       
 #                   self._linear_velocity = 6.0
+#                elif(아직 안지났으면 end_time - start_time <= 3.0) 오차 발생 방지
+#                   time.sleep(0.01) 0.01 초씩 슬립하고 재확인
+#                   end_time = dt.datetime.now() 
 
         @property
         def linear_velocity(self) -> float:
