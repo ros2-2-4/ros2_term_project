@@ -16,9 +16,11 @@ class LineTracker:
         # yellow color
         lower_yellow = numpy.array([20, 100, 100])
         upper_yellow = numpy.array([30, 255, 255])
-
+        # white color
+        lower_white = numpy.array([0, 0, 200])
+        upper_white = numpy.array([255, 55, 255])
         mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
-
+        mask2 = cv2.inRange(hsv, lower_white, upper_white)
         h, w, d = img.shape
         search_top = int(3 * h / 4)
         search_bot = int(3 * h / 4 + 20)
@@ -28,6 +30,22 @@ class LineTracker:
         if M['m00'] > 0:
             cx = int(M['m10'] / M['m00'])
             cy = int(M['m01'] / M['m00'])
+            cv2.circle(img, (cx, cy), 20, (0, 0, 255), -1)
+            # BEGIN CONTROL
+            err = cx - w / 2
+            self._delta = err
+            # END CONTROL
+        cv2.imshow("window", img)
+        cv2.imshow("mask", mask)
+        cv2.waitKey(3)
+        search_top = int(3 * h / 4)
+        search_bot = int(3 * h / 4 + 20)
+        mask2[0:search_top, 0:w] = 0
+        mask2[search_bot:h, 0:w] = 0
+        M2 = cv2.moments(mask)
+        if M2['m00'] > 0:
+            cx = int(M2['m10'] / M2['m00'])
+            cy = int(M2['m01'] / M2['m00'])
             cv2.circle(img, (cx, cy), 20, (0, 0, 255), -1)
             # BEGIN CONTROL
             err = cx - w / 2
