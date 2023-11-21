@@ -51,7 +51,7 @@ def main():
     tracker = LineTracker()
     import time
     for i in range(100):
-        img = cv2.imread('/home/ros2/Ros2Projects/oom_ws/src/ros2_term_project/worlds/sample.png')
+        img = cv2.imread('/root/Ros2Projects/oom_ws/src/ros2_term_project/worlds/sample.png')
         tracker.process(img)
         time.sleep(0.1)
 
