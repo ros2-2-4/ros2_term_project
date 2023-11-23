@@ -13,10 +13,6 @@ class VelocityCalculator:
         self.step_value = (self.target_value - self.first_value) / (self.rate * self.duration)
         self._state = VelocityCalculator.State.INIT
 
-    def update_parameter(self, current: float, target: float):
-        self.current_value = current
-        self.target_value = target
-
     def next_value(self) -> float:
         if abs(self.target_value - self.current_value) < VelocityCalculator.ERROR:
             self.set_state(VelocityCalculator.State.REACHED)

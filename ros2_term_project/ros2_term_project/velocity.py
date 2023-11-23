@@ -10,7 +10,7 @@ thread = None
 class Velocity:
     def __init__(self):
         super().__init__()
-        self._linear_velocity = 3.0
+        self._linear_velocity = 0.0
         self._angular_velocity = 0.0
 
     @property
