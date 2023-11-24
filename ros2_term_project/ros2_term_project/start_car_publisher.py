@@ -32,8 +32,8 @@ class StartCarPublisher(Node):
         rclpy.spin(velpub)        
 
 class VelPub(Node):
-    PUB_RATE = 30.0
-    DURATION = 1
+    PUB_RATE = 10.0
+    DURATION = 1.0
 
     def __init__(self, vel: Velocity, namespace, line_tracker: LineTracker):
         super().__init__(namespace + '_VelPub')
@@ -57,11 +57,7 @@ class VelPub(Node):
         self.img = None
         self.obstacle_found = False
         self.waiting_start_time = None
-        self.avoidance_move = False
-        self.avoidance_start_time = None
-        self.avoidance_state = VelPub.State.WAITING
-        self.avoidance_sign = 1
-        self.avoidance_start_delta = 0
+        self.timechecker = dt.datetime.now()
         
 
     def start_car_callback(self, msg):
@@ -75,7 +71,7 @@ class VelPub(Node):
         self.line_tracker.process(img)
         self.vel.angular_velocity = (-1) * self.line_tracker.delta / 450  # OK: 40
         # 급커브, 차선이탈방지 속도감소
-        new_linear_velocity = 2.0 if (self.vel.angular_velocity >= 0.080) or (self.vel.angular_velocity <= -0.080) else 5.5
+        new_linear_velocity = 3.0 if (self.vel.angular_velocity >= 0.080) or (self.vel.angular_velocity <= -0.080) else 5.5
         self.vel.linear_velocity = new_linear_velocity
 
     def scan_callback(self, msg: LaserScan):
@@ -90,59 +86,12 @@ class VelPub(Node):
         if self.obstacle_found:
             if self.waiting_start_time is None: return
                 # 1.0 + 1.0 deliberately
-            if self.avoidance_state == VelPub.State.WAITING and min_distance > 13.0:
+            if min_distance > 13.0:
                 self.obstacle_found = False
                 self.waiting_start_time = None
                 return
             elapsed_time = (dt.datetime.now() - self.waiting_start_time).total_seconds()
             self.get_logger().debug('elapsed time = %f' % elapsed_time)
-            if self.avoidance_move is False and elapsed_time > 5.0:
-                # self.obstacle_found should be set False after the end of avoidance move
-                self.avoidance_state = VelPub.State.STEP_ASIDE
-                self.avoidance_start_time = dt.datetime.now() # cf. self.get_clock().now()
-                self.avoidance_start_delta = self.line_tracker.delta
-                self.avoidance_sign = -1 if self.line_tracker.delta > 0.0 else 1
-                self.get_logger().info('delta = %.2f' % self.line_tracker.delta)
-                self.avoidance_move = True
-
-        if self.avoidance_move:
-            if self.avoidance_state == VelPub.State.STEP_ASIDE:
-                self.step_aside()
-                elapsed_time = (dt.datetime.now() - self.avoidance_start_time).total_seconds()
-                if elapsed_time > 3.5:
-                    print('State changed ... ')
-                    self.avoidance_state = VelPub.State.GO_STRAIGHT
-                    self.avoidance_start_time = dt.datetime.now()
-            elif self.avoidance_state == VelPub.State.GO_STRAIGHT:
-                self.go_straight()
-                elapsed_time = (dt.datetime.now() - self.avoidance_start_time).total_seconds()
-                max_time = 2.5 if abs(self.avoidance_start_delta) > 25 else 4.0
-                if elapsed_time > max_time:
-                    self.avoidance_state = VelPub.State.STEP_IN
-                    self.avoidance_start_time = dt.datetime.now()
-                    # self.obstacle_found = False # to activate image_callback()
-            elif self.avoidance_state == VelPub.State.STEP_IN:
-                self.step_in()
-                elapsed_time = (dt.datetime.now() - self.avoidance_start_time).total_seconds()
-                if elapsed_time > 2.0:
-                    self.avoidance_state = VelPub.State.WAITING
-                    self.avoidance_start_time = None
-                    self.avoidance_move = False
-                    self.obstacle_found = False
-                    self.waiting_start_time = None
-
-    def step_aside(self):
-        self.vel.linear_velocity = 2.0
-        self.vel.angular_velocity = self.avoidance_sign * (0.475 if abs(self.avoidance_start_delta) > 25 else 0.3)
-
-    def step_in(self):
-        self.vel.linear_velocity = 2.0
-        self.vel.angular_velocity = (-1) * self.avoidance_sign * (0.2 if abs(self.avoidance_start_delta) > 25 else 0.25)
-
-    def go_straight(self):
-        self.vel.linear_velocity = 5.5
-        self.vel.angular_velocity = (-1) * self.avoidance_sign * \
-            0.15 if abs(self.avoidance_start_delta) > 25 else (-1) * self.avoidance_sign * 0.3
 
     def velpub_pub(self):
         new_linear_x = self.vel.linear_velocity
@@ -154,15 +103,10 @@ class VelPub(Node):
         self.current_linear_x = self.linear_x_calculator.next_value()
         msg.linear.x = float(self.current_linear_x)
         msg.angular.z = self.vel.angular_velocity
-        self.get_logger().info('name = %s, linear.x = %.3f, angular.z = %.3f' %
-                               (self.namespace, msg.linear.x, msg.angular.z))
+        elapsed_time = (dt.datetime.now() - self.timechecker).total_seconds()
+        self.get_logger().info('name = %s, linear.x = %.3f, angular.z = %.3f, time= %f' %
+                               (self.namespace, msg.linear.x, msg.angular.z, elapsed_time))
         self.velpub.publish(msg)
-    
-    class State(Enum):
-        WAITING = 0
-        STEP_ASIDE = 1
-        GO_STRAIGHT = 2
-        STEP_IN = 3
 
 def main(args=None):
     rclpy.init(args=args)
