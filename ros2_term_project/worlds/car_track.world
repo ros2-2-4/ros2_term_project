@@ -6,6 +6,9 @@
       <uri>model://ground_plane</uri>
     </include>
 -->
+   <include>
+    <uri>model://unit_box</uri>
+   </include>
 
 
 <model name="ground">
@@ -39,13 +42,57 @@
         </visual>
       </link>
     </model>
-
+      <actor name="actor">
+         <skin>
+            <filename>walk.dae</filename>
+            <scale>1.05</scale>
+         </skin>
+         <pose>0 0 0 0 0 0</pose>
+         <animation name="walking">
+            <filename>walk.dae</filename>
+            <scale>1</scale>
+            <interpolate_x>true</interpolate_x>
+         </animation>
+         <script>
+            <loop>true</loop>
+            <delay_start>0</delay_start>
+            <auto_start>true</auto_start>
+            <trajectory id="0" type="walking">
+               <waypoint>
+                  <time>0</time>
+                  <pose>120 -40 0 0 0 0</pose>
+               </waypoint>
+               <waypoint>
+                  <time>5</time>
+                  <pose>125.5 -40 0 0 0 0</pose>
+               </waypoint>
+               <waypoint>
+                  <time>10</time>
+                  <pose>131 -40 0 0 0 0</pose>
+               </waypoint>
+               <waypoint>
+                  <time>11</time>
+                  <pose>131 -40 0 0 0 3.14</pose>
+               </waypoint>
+               <waypoint>
+                  <time>12</time>
+                  <pose>129.9 -40 0 0 0 3.14</pose>
+               </waypoint>
+               <waypoint>
+                  <time>16</time>
+                  <pose>125.5 -40 0 0 0 3.14</pose>
+               </waypoint>
+               <waypoint>
+                  <time>21</time>
+                  <pose>120 -40 0 0 0 3.14</pose>
+               </waypoint>
+            </trajectory>
+         </script>
+      </actor>
     <include>
       <uri>model://sun</uri>
     </include>
-
-
+    
   </world>
 </sdf>
-
 

@@ -10,7 +10,7 @@ from sensor_msgs.msg import LaserScan
 from .velocity import Velocity
 from .velocity_calculator import VelocityCalculator
 from .line_tracker import LineTracker
-import datetime as dt
+from datetime import datetime as dt
 from enum import Enum
 
 class StartCarPublisher(Node):
@@ -38,26 +38,35 @@ class VelPub(Node):
     def __init__(self, vel: Velocity, namespace, line_tracker: LineTracker):
         super().__init__(namespace + '_VelPub')
         self.vel = vel
-        self.line_tracker = line_tracker
         self.namespace = namespace
-        self.bridge = cv_bridge.CvBridge()
-        self.line_subscription = self.create_subscription(Image, f'{self.namespace}/camera1/image_raw', self.image_callback, 10)
-        self.lidar_subscription = self.create_subscription(LaserScan, f'{self.namespace}/scan', self.scan_callback, 10)
-        self.startcar_subscription = self.create_subscription(String, 'start_car', self.start_car_callback, 1)
-        self.velpub = self.create_publisher(Twist, f'{self.namespace}/cmd_demo', 1)
-        self.msg = Twist()
         timer_period = 1 / self.PUB_RATE  # unit time: second
-        self.timer = self.create_timer(timer_period, self.velpub_pub)
+        self.startcar_subscription = self.create_subscription(String, 'start_car', self.start_car_callback, 1)
         self.current_linear_x = 0.0
         self.current_angular_z = 0.0
         self.target_linear_x = self.vel.linear_velocity        
         self.target_angular_z = self.vel.angular_velocity
-        self.linear_x_calculator = VelocityCalculator(1/timer_period, 2.0, 0.0, 0.0)
-        self.angular_z_calculator = VelocityCalculator(1/timer_period, 2.0, 0.0, 0.0)
+        self.linear_x_calculator = VelocityCalculator(1/timer_period, 1.0, 0.0, 0.0)
+        self.angular_z_calculator = VelocityCalculator(1/timer_period, 1.0, 0.0, 0.0)
+
+        self.line_tracker = line_tracker
+        self.bridge = cv_bridge.CvBridge()
+        self.line_subscription = self.create_subscription(Image, f'{self.namespace}/camera1/image_raw', self.image_callback, 10)
         self.img = None
+        
+        self.stoptime = None
+        self.white_found = False
+        self.first_white_detected = False
+
+        self.lidar_subscription = self.create_subscription(LaserScan, f'{self.namespace}/scan', self.scan_callback, 10)
+
         self.obstacle_found = False
         self.waiting_start_time = None
-        self.timechecker = dt.datetime.now()
+        self.timechecker = dt.now()
+
+        self.velpub = self.create_publisher(Twist, f'{self.namespace}/cmd_demo', 1)
+        self.timer = self.create_timer(timer_period, self.velpub_pub)
+        self.msg = Twist()
+
         
 
     def start_car_callback(self, msg):
@@ -67,12 +76,41 @@ class VelPub(Node):
 
     def image_callback(self, msg: Image):
         if self.obstacle_found: return
+        
         img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         self.line_tracker.process(img)
-        self.vel.angular_velocity = (-1) * self.line_tracker.delta / 450  # OK: 40
-        # 급커브, 차선이탈방지 속도감소
-        new_linear_velocity = 3.0 if (self.vel.angular_velocity >= 0.080) or (self.vel.angular_velocity <= -0.080) else 5.5
-        self.vel.linear_velocity = new_linear_velocity
+
+        if self.line_tracker.white_detected:
+            # White line detected, stop the car
+            self.vel.linear_velocity = 0.0
+            if not self.white_found:
+                self.stoptime = dt.now()
+                self.white_found = True
+                self.get_logger().info('Found white line, stopping the car.')
+                return
+
+        # Check if the car is stopped and has been stopped for more than 3 seconds
+        if self.white_found:
+            elapsed_time = (dt.now() - self.stoptime).total_seconds()
+            if elapsed_time > 3.0:
+                # Resume movement after 3 seconds
+                self.vel.linear_velocity = 4.5
+                self.stoptime = None
+                self.white_found = False
+                self.get_logger().info('Resuming movement after 3 seconds.')
+
+        if not self.white_found:
+            # Reset the stop time when the white line is not detected
+            # Update the angular velocity based on the yellow line detection
+            self.vel.angular_velocity = (-1) * self.line_tracker.delta / 450  # OK: 40
+            # Update the linear velocity based on the angular velocity
+            new_linear_velocity = 3.0 if (self.vel.angular_velocity >= 0.070) or (
+                    self.vel.angular_velocity <= -0.070) else 5.5
+            self.vel.linear_velocity = new_linear_velocity
+
+        # self.vel.angular_velocity = (-1) * self.line_tracker.delta / 450  # OK: 40
+        # new_linear_velocity = 2.0 if (self.vel.angular_velocity >= 0.070) or (self.vel.angular_velocity <= -0.070) else 4.5
+        # self.vel.linear_velocity = new_linear_velocity
 
     def scan_callback(self, msg: LaserScan):
         min_distance = min(msg.ranges)
@@ -82,7 +120,7 @@ class VelPub(Node):
             self.get_logger().info('An obstacle found in %.2f m' % min(msg.ranges))
             if self.waiting_start_time is None:
                 # set the start time
-                self.waiting_start_time = dt.datetime.now()
+                self.waiting_start_time = dt.now()
         if self.obstacle_found:
             if self.waiting_start_time is None: return
                 # 1.0 + 1.0 deliberately
@@ -90,7 +128,7 @@ class VelPub(Node):
                 self.obstacle_found = False
                 self.waiting_start_time = None
                 return
-            elapsed_time = (dt.datetime.now() - self.waiting_start_time).total_seconds()
+            elapsed_time = (dt.now() - self.waiting_start_time).total_seconds()
             self.get_logger().debug('elapsed time = %f' % elapsed_time)
 
     def velpub_pub(self):
@@ -103,7 +141,7 @@ class VelPub(Node):
         self.current_linear_x = self.linear_x_calculator.next_value()
         msg.linear.x = float(self.current_linear_x)
         msg.angular.z = self.vel.angular_velocity
-        elapsed_time = (dt.datetime.now() - self.timechecker).total_seconds()
+        elapsed_time = (dt.now() - self.timechecker).total_seconds()
         self.get_logger().info('name = %s, linear.x = %.3f, angular.z = %.3f, time= %f' %
                                (self.namespace, msg.linear.x, msg.angular.z, elapsed_time))
         self.velpub.publish(msg)
@@ -128,7 +166,7 @@ def main(args=None):
                 break
     else:
         # If '--ros-args' is not used, run with a default namespace
-        start_car_publisher = StartCarPublisher(vel, 'default_namespace', line_tracker)
+        start_car_publisher = StartCarPublisher(vel, 'demo', line_tracker)
         try:
             rclpy.spin(start_car_publisher)
         except KeyboardInterrupt:
